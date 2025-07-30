@@ -13,7 +13,8 @@ class VerifyOtpScreen extends StatefulWidget {
 }
 
 class _VerifyOtpScreenState extends State<VerifyOtpScreen> with SingleTickerProviderStateMixin {
-  final TextEditingController _otpController = TextEditingController();
+  List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+  List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
   bool _isLoading = false;
   late AnimationController _ctrl;
 
@@ -29,19 +30,23 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> with SingleTickerProv
   @override
   void dispose() {
     _ctrl.dispose();
-    _otpController.dispose();
+    for (var controller in _controllers) {
+      controller.dispose();
+    }
+    for (var focus in _focusNodes) {
+      focus.dispose();
+    }
     super.dispose();
   }
 
-  Future<void> _verifyOtp() async {
-    final otp = _otpController.text.trim();
-    if (otp.isEmpty) {
-      _showMessage("Please enter the OTP.");
+  void _verifyOtp() async {
+    String otp = _controllers.map((c) => c.text).join();
+    if (otp.length != 6) {
+      _showMessage("Please enter a 6-digit OTP.");
       return;
     }
 
     setState(() => _isLoading = true);
-
     try {
       final response = await http.post(
         Uri.parse('https://iron-board.onrender.com/api/verify-otp/'),
@@ -72,6 +77,35 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> with SingleTickerProv
     );
   }
 
+  Widget _buildOtpInputBox(int index) {
+    return Container(
+      width: 42,
+      height: 48,
+      margin: const EdgeInsets.symmetric(horizontal: 5),
+      child: TextFormField(
+        controller: _controllers[index],
+        focusNode: _focusNodes[index],
+        keyboardType: TextInputType.number,
+        textAlign: TextAlign.center,
+        maxLength: 1,
+        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        decoration: InputDecoration(
+          counterText: '',
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        onChanged: (value) {
+          if (value.isNotEmpty && index < 5) {
+            _focusNodes[index + 1].requestFocus();
+          } else if (value.isEmpty && index > 0) {
+            _focusNodes[index - 1].requestFocus();
+          }
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -94,12 +128,12 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> with SingleTickerProv
                 child: Stack(
                   children: [
                     ...circleSpecs.map((spec) => Positioned(
-                          top: spec['top'] as double?,
-                          left: spec['left'] as double?,
-                          right: spec['right'] as double?,
-                          bottom: spec['bottom'] as double?,
-                          child: _buildCircle(spec['size'] as double, spec['color'] as Color),
-                        )),
+                      top: spec['top'] as double?,
+                      left: spec['left'] as double?,
+                      right: spec['right'] as double?,
+                      bottom: spec['bottom'] as double?,
+                      child: _buildCircle(spec['size'] as double, spec['color'] as Color),
+                    )),
                     Positioned(
                       left: 0 + 14 * sin(animationValue * pi),
                       top: 310 + 13 * cos(animationValue * pi),
@@ -118,21 +152,13 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> with SingleTickerProv
                     children: [
                       const Text("Verify OTP", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'SF Pro Display')),
                       const SizedBox(height: 14),
-                      const Text("Enter the OTP sent to your mobile", textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.grey)),
+                      const Text("Enter the 6-digit OTP sent to your mobile", textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.grey)),
                       const SizedBox(height: 24),
                       Text(widget.phone, style: const TextStyle(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 24),
-                      TextField(
-                        controller: _otpController,
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          labelText: "Enter OTP",
-                          prefixIcon: const Icon(Icons.lock),
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(18)),
-                          filled: true,
-                          fillColor: Colors.white,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(6, (i) => _buildOtpInputBox(i)),
                       ),
                       const SizedBox(height: 24),
                       _isLoading
