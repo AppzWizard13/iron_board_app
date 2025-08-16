@@ -1,11 +1,15 @@
-import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:dio/dio.dart';
+import 'package:cookie_jar/cookie_jar.dart';
+import 'package:dio_cookie_manager/dio_cookie_manager.dart';
+import 'package:another_flushbar/flushbar.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class VerifyOtpScreen extends StatefulWidget {
   final String phone;
-
   const VerifyOtpScreen({Key? key, required this.phone}) : super(key: key);
 
   @override
@@ -13,18 +17,27 @@ class VerifyOtpScreen extends StatefulWidget {
 }
 
 class _VerifyOtpScreenState extends State<VerifyOtpScreen> with SingleTickerProviderStateMixin {
-  List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
-  List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
+  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+  final List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
   bool _isLoading = false;
   late AnimationController _ctrl;
+
+  // Dio + Cookie management (only one instance needed)
+  final Dio _dio = Dio();
+  final CookieJar _cookieJar = CookieJar();
+
+  // Secure storage instance
+  final FlutterSecureStorage storage = FlutterSecureStorage();
 
   @override
   void initState() {
     super.initState();
+    _dio.interceptors.add(CookieManager(_cookieJar));
     _ctrl = AnimationController(
       duration: const Duration(seconds: 20),
       vsync: this,
     )..repeat();
+    _sendOtp(); // Send OTP (and start session) when entering screen
   }
 
   @override
@@ -39,42 +52,98 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> with SingleTickerProv
     super.dispose();
   }
 
-  void _verifyOtp() async {
+  Future<void> _sendOtp() async {
+    // Call Django to send OTP—this establishes the session.
+    try {
+      final baseUrl = dotenv.env['API_URL'] ?? 'https://example.com';
+      final response = await _dio.post(
+        '$baseUrl/api/send-otp/',
+        data: {'phone_number': widget.phone},
+        options: Options(contentType: Headers.formUrlEncodedContentType),
+      );
+      final res = response.data;
+      if (response.statusCode == 200 && res['success'] == true) {
+        _showTopRightFlushBar("OTP sent to ${widget.phone}");
+      } else {
+        _showTopRightFlushBar(res['message'] ?? 'Could not send OTP. Try again.');
+      }
+    } catch (e) {
+      _showTopRightFlushBar("Couldn't send OTP. Please check connection.");
+    }
+  }
+
+  Future<void> _verifyOtp() async {
     String otp = _controllers.map((c) => c.text).join();
     if (otp.length != 6) {
-      _showMessage("Please enter a 6-digit OTP.");
+      _showTopRightFlushBar("Please enter a 6-digit OTP.");
       return;
     }
 
     setState(() => _isLoading = true);
+
     try {
-      final response = await http.post(
-        Uri.parse('https://iron-board.onrender.com/api/verify-otp/'),
-        body: {
+      final Dio dio = Dio(); // ✅ define dio here
+      final baseUrl = dotenv.env['API_URL'] ?? 'https://example.com';
+
+      final response = await dio.post(
+        '$baseUrl/api/verify-otp/',
+        data: {
           'otp': otp,
-          'phone_number': widget.phone,
         },
+        options: Options(
+          contentType: Headers.formUrlEncodedContentType,
+        ),
       );
 
-      final data = jsonDecode(response.body);
+      final data = response.data;
 
-      if (response.statusCode == 200 && data['status'] == 'success') {
-        _showMessage("OTP Verified Successfully");
-        Navigator.pushReplacementNamed(context, '/home');
-      } else {
-        _showMessage(data['message'] ?? 'Invalid OTP. Please try again.');
+      if (response.statusCode == 200) {
+        final String? authToken = data['access'] ?? data['token'] ?? data['key'];
+        if (authToken != null) {
+          await storage.write(key: 'auth_token_jwt', value: authToken);
+          _showTopRightFlushBar("OTP Verified Successfully");
+          Navigator.pushReplacementNamed(context, '/dashboard');
+          return;
+        }
+        _showTopRightFlushBar("Verification succeeded but no auth token received!");
+        return;
       }
+
+      _showTopRightFlushBar(data['detail'] ?? 'Invalid OTP. Please try again.');
     } catch (e) {
-      _showMessage("Verification failed. Please try again later.");
+      if (e is DioError) {
+        final data = e.response?.data;
+        if (data is Map && data['non_field_errors'] != null) {
+          final errors = data['non_field_errors'];
+          _showTopRightFlushBar(errors is List ? errors.join('\n') : errors.toString());
+        } else {
+          _showTopRightFlushBar('OTP verification error: ${data ?? e}');
+        }
+        print("Dio error type: ${e.type}");
+        print("Dio error: $e");
+        print("Dio error response: $data");
+      } else {
+        _showTopRightFlushBar('OTP verification error: $e');
+        print("OTP verification error: $e");
+      }
     } finally {
       setState(() => _isLoading = false);
     }
   }
 
-  void _showMessage(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
-    );
+
+  void _showTopRightFlushBar(String message) {
+    Flushbar(
+      message: message,
+      margin: const EdgeInsets.only(top: 40, right: 16, left: 100),
+      borderRadius: BorderRadius.circular(12),
+      backgroundColor: Colors.black.withOpacity(0.5),
+      flushbarPosition: FlushbarPosition.TOP,
+      duration: const Duration(seconds: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      forwardAnimationCurve: Curves.easeOut,
+      reverseAnimationCurve: Curves.easeIn,
+    ).show(context);
   }
 
   Widget _buildOtpInputBox(int index) {
@@ -114,81 +183,50 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> with SingleTickerProv
         animation: _ctrl,
         builder: (context, child) {
           final animationValue = _ctrl.value;
-          final circleSpecs = [
-            {'top': -55 + 12 * sin(animationValue * 2 * pi), 'left': -60 + 10 * cos(animationValue * 2 * pi), 'size': 140.0, 'color': const Color(0xFF6C63FF).withOpacity(0.13)},
-            {'bottom': -40 + 7 * cos(animationValue * 2 * pi), 'right': -30 + 8 * sin(animationValue * 2 * pi), 'size': 80.0, 'color': const Color(0xFFA32EFF).withOpacity(0.16)},
-            {'top': 80 + 8 * sin(animationValue * 2 * pi + 1), 'right': -28 + 5 * cos(animationValue * 2 * pi + 3), 'size': 42.0, 'color': const Color(0xFFA32EFF).withOpacity(0.12)},
-            {'bottom': 220 + 13 * cos(animationValue * 2 * pi + 2), 'left': -80 + 11 * sin(animationValue * 2 * pi + 1), 'size': 175.0, 'color': const Color(0xFF6C63FF).withOpacity(0.09)},
-            {'top': 60 + 6 * cos(animationValue * pi + 1.2), 'left': 90 + 6 * sin(animationValue * 2 * pi), 'size': 24.0, 'color': const Color(0xFFA32EFF).withOpacity(0.16)},
-          ];
-
-          return Stack(
-            children: [
-              Positioned.fill(
-                child: Stack(
-                  children: [
-                    ...circleSpecs.map((spec) => Positioned(
-                      top: spec['top'] as double?,
-                      left: spec['left'] as double?,
-                      right: spec['right'] as double?,
-                      bottom: spec['bottom'] as double?,
-                      child: _buildCircle(spec['size'] as double, spec['color'] as Color),
-                    )),
-                    Positioned(
-                      left: 0 + 14 * sin(animationValue * pi),
-                      top: 310 + 13 * cos(animationValue * pi),
-                      child: CustomPaint(
-                        painter: MovingTrianglePainter(color: const Color(0xFF6C63FF).withOpacity(0.13)),
-                        size: const Size(44, 44),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 64),
-                  child: Column(
-                    children: [
-                      const Text("Verify OTP", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'SF Pro Display')),
-                      const SizedBox(height: 14),
-                      const Text("Enter the 6-digit OTP sent to your mobile", textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.grey)),
-                      const SizedBox(height: 24),
-                      Text(widget.phone, style: const TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(6, (i) => _buildOtpInputBox(i)),
-                      ),
-                      const SizedBox(height: 24),
-                      _isLoading
-                          ? const CircularProgressIndicator()
-                          : GradientButton(text: "Verify", onPressed: _verifyOtp, height: 38, radius: 22),
-                      const SizedBox(height: 16),
-                      TextButton(
-                        onPressed: () => Navigator.pushReplacementNamed(context, '/login-with-otp'),
-                        child: const Text("Resend OTP"),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
-                        child: const Text("Back to Login"),
-                      ),
-                    ],
+          return Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 64),
+              child: Column(
+                children: [
+                  const Text(
+                    "Verify OTP",
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'SF Pro Display'),
                   ),
-                ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    "Enter the 6-digit OTP sent to your mobile",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(widget.phone, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(6, (i) => _buildOtpInputBox(i)),
+                  ),
+                  const SizedBox(height: 24),
+                  _isLoading
+                      ? const SpinKitFadingCircle(
+                          color: Color(0xFFA32EFF), // Use your accent color
+                          size: 40,
+                        )
+                      : GradientButton(text: "Verify", onPressed: _verifyOtp, height: 38, radius: 22),
+                  const SizedBox(height: 16),
+                  TextButton(
+                    onPressed: _sendOtp,
+                    child: const Text("Resend OTP"),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
+                    child: const Text("Back to Login"),
+                  ),
+                ],
               ),
-            ],
+            ),
           );
         },
       ),
-    );
-  }
-
-  Widget _buildCircle(double size, Color color) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
     );
   }
 }
@@ -241,24 +279,4 @@ class GradientButton extends StatelessWidget {
       ),
     );
   }
-}
-
-class MovingTrianglePainter extends CustomPainter {
-  final Color color;
-
-  MovingTrianglePainter({required this.color});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Paint paint = Paint()..color = color;
-    final Path path = Path();
-    path.moveTo(size.width / 2, 0);
-    path.lineTo(0, size.height);
-    path.lineTo(size.width, size.height);
-    path.close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "944738807710",
+    "project_id": "iron-board-d8887",
+    "storage_bucket": "iron-board-d8887.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:944738807710:android:edd16fd2f039167b26708f",
+        "android_client_info": {
+          "package_name": "com.example.iron_board"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "944738807710-hdtrsibkbcs00to1pkkmjj2kk190lcvq.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.iron_board",
+            "certificate_hash": "66f5c7c80e267fe40e8570f08ea7839166e43124"
+          }
+        },
+        {
+          "client_id": "944738807710-absp2l77vio1fckr0o5970ck4ql2ip7q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAP2FJsFW9cpRXJeYHTFloWku23rAuW_JM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "944738807710-absp2l77vio1fckr0o5970ck4ql2ip7q.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

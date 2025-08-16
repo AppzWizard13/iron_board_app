@@ -1,18 +1,35 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'dart:ui';
-import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:another_flushbar/flushbar.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import 'dashboard_screen.dart'; // Adjust path as needed
 import 'login_with_otp_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
+
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
-    with SingleTickerProviderStateMixin {
+class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
   late AnimationController _ctrl;
+  final TextEditingController _mobileController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final storage = FlutterSecureStorage();
+  bool isLoading = false;
+  bool isRemember = false;
+
+  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email']);
 
   @override
   void initState() {
@@ -26,6 +43,8 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void dispose() {
     _ctrl.dispose();
+    _mobileController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -33,6 +52,172 @@ class _LoginScreenState extends State<LoginScreen>
         colors: [Color(0xFF6C63FF), Color(0xFFA32EFF)],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
+      );
+
+  // Show a custom flushbar in the top-right corner
+  void showTopRightFlushBar(String message) {
+    Flushbar(
+      message: message,
+      margin: const EdgeInsets.only(top: 40, right: 16, left: 100),
+      borderRadius: BorderRadius.circular(12),
+      backgroundColor: Colors.black.withOpacity(0.5),
+      flushbarPosition: FlushbarPosition.TOP,
+      duration: const Duration(seconds: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      forwardAnimationCurve: Curves.easeOut,
+      reverseAnimationCurve: Curves.easeIn,
+    ).show(context);
+  }
+
+  Future<String?> loginUser(String mobile, String password) async {
+    setState(() => isLoading = true);
+    final baseUrl = dotenv.env['API_URL'] ?? 'https://example.com';
+    final url = Uri.parse('$baseUrl/api-v1/login/');
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'mobile': mobile, 'password': password}),
+      );
+      setState(() => isLoading = false);
+
+      final decodedJson = json.decode(response.body);
+      print("Login response decoded: $decodedJson");
+      if (response.statusCode == 200) {
+        // Try common key names for access token
+        final token = decodedJson['access'] ?? decodedJson['key'];
+        if (token != null) {
+          await storage.write(key: 'auth_token_jwt', value: token);
+          print('Access token stored securely!');
+          // Optionally, you may wish to also store the refresh token
+          if (decodedJson['refresh'] != null) {
+            await storage.write(key: 'refresh_token_jwt', value: decodedJson['refresh']);
+          }
+        } else {
+          print('No access token received.');
+        }
+        return null; // Success, no error
+      } else {
+        final jsonResp = jsonDecode(response.body);
+        return jsonResp['detail'] ?? 'Login failed';
+      }
+    } catch (e) {
+      setState(() => isLoading = false);
+      return 'An error occurred. Please try again.';
+    }
+  }
+
+
+  Future<void> _handleGoogleLogin() async {
+    try {
+      // Always show the account picker by signing out first
+      await _googleSignIn.signOut();
+
+      // Start Google sign-in
+      final GoogleSignInAccount? account = await _googleSignIn.signIn();
+      if (account == null) {
+        showTopRightFlushBar('Google sign-in cancelled!');
+        return;
+      }
+      // Get authentication tokens
+      final GoogleSignInAuthentication auth = await account.authentication;
+      final String? accessToken = auth.accessToken;
+
+      if (accessToken == null) {
+        showTopRightFlushBar('Google sign-in failed: No access token received.');
+        return;
+      }
+      print("Google accessToken: $accessToken");
+
+      // Send access token to Django backend
+      final dio = Dio();
+      final baseUrl = dotenv.env['API_URL'] ?? 'https://example.com';
+      final response = await dio.post(
+        '$baseUrl/dj-rest-auth/google/',
+        data: {'access_token': accessToken},
+        options: Options(contentType: Headers.jsonContentType),
+      );
+      print("Google login response status: ${response.statusCode}");
+      print("Google login response data: ${response.data}");
+
+      if (response.statusCode == 200) {
+        final String? authToken = response.data['access'] ?? 
+                                  response.data['token'] ?? 
+                                  response.data['key'];
+        if (authToken != null) {
+          await storage.write(key: 'auth_token', value: authToken);
+          showTopRightFlushBar('Google login successful!');
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const DashboardScreen()),
+          );
+        } else {
+          showTopRightFlushBar('Login succeeded but no auth token received!');
+        }
+      } else {
+        print("Google login failed: ${response.data}");
+        showTopRightFlushBar('Google login failed.');
+      }
+    } catch (e) {
+      if (e is DioError) {
+        final data = e.response?.data;
+        // Custom UX: Convert backend "already registered" response to YOUR own text
+        if (data is Map && data['non_field_errors'] != null) {
+          final errors = data['non_field_errors'];
+          if (errors is List && errors.any((err) => err.toString().contains('already registered'))) {
+            showTopRightFlushBar('This Gmail is not registered with IRON BOARD.');
+          } else {
+            showTopRightFlushBar(errors.join('\n'));
+          }
+        } else {
+          showTopRightFlushBar('Google login error: ${data ?? e}');
+        }
+        print("Dio error type: ${e.type}");
+        print("Dio error: $e");
+        print("Dio error response: $data");
+      } else {
+        showTopRightFlushBar('Google login error: $e');
+        print("Google login error: $e");
+      }
+    }
+  }
+
+
+
+
+
+
+  Widget _roundedField({
+    required String label,
+    required bool isPassword,
+    required TextEditingController controller,
+  }) =>
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 1.5),
+        child: TextField(
+          controller: controller,
+          obscureText: isPassword,
+          cursorColor: const Color(0xFF6C63FF),
+          style: const TextStyle(fontSize: 14.5),
+          keyboardType:
+              isPassword ? TextInputType.text : TextInputType.phone,
+          decoration: InputDecoration(
+            labelText: label,
+            labelStyle: const TextStyle(
+              fontSize: 13.5,
+              color: Colors.black87,
+              fontFamily: 'SF Pro Display',
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding:
+                const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
       );
 
   @override
@@ -43,7 +228,6 @@ class _LoginScreenState extends State<LoginScreen>
         animation: _ctrl,
         builder: (context, child) {
           final animationValue = _ctrl.value;
-
           final circleSpecs = [
             {
               'top': -55 + 12 * sin(animationValue * 2 * pi),
@@ -149,7 +333,7 @@ class _LoginScreenState extends State<LoginScreen>
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const SizedBox(height: 35),
+                      const SizedBox(height: 55),
                       const Text(
                         'Welcome Back',
                         style: TextStyle(
@@ -173,17 +357,23 @@ class _LoginScreenState extends State<LoginScreen>
                       _roundedField(
                         label: 'Enter mobile number',
                         isPassword: false,
+                        controller: _mobileController,
                       ),
                       const SizedBox(height: 10),
                       _roundedField(
                         label: 'Password',
                         isPassword: true,
+                        controller: _passwordController,
                       ),
                       Row(
                         children: [
                           Checkbox(
-                            value: false,
-                            onChanged: (_) {},
+                            value: isRemember,
+                            onChanged: (val) {
+                              setState(() {
+                                isRemember = val ?? false;
+                              });
+                            },
                             materialTapTargetSize:
                                 MaterialTapTargetSize.shrinkWrap,
                           ),
@@ -194,74 +384,65 @@ class _LoginScreenState extends State<LoginScreen>
                         ],
                       ),
                       const SizedBox(height: 10),
-                      GradientButton(
-                        text: 'Login',
-                        onPressed: () {},
-                        height: 38,
-                        radius: 22,
-                        fontSize: 15,
-                      ),
+                      isLoading
+                          ? const SpinKitFadingCircle(
+                              color: Color(0xFF6C63FF),
+                              size: 38.0,
+                            )
+                          : GradientButton(
+                              text: 'Login',
+                              onPressed: () async {
+                                FocusScope.of(context).unfocus();
+                                final mobile = _mobileController.text.trim();
+                                final password = _passwordController.text;
+                                if (mobile.isEmpty || password.isEmpty) {
+                                  showTopRightFlushBar('Please enter all fields');
+                                  return;
+                                }
+                                final errorMessage = await loginUser(mobile, password);
+                                if (errorMessage == null) {
+                                  showTopRightFlushBar('Login successful');
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const DashboardScreen()),
+                                  );
+                                } else {
+                                  showTopRightFlushBar(errorMessage);
+                                }
+                              },
+                              height: 38,
+                              radius: 22,
+                              fontSize: 15,
+                            ),
                       const SizedBox(height: 9),
                       const Text(
                         'or',
                         style: TextStyle(color: Colors.grey, fontSize: 13),
                       ),
-                      const SizedBox(height: 9),
-                      GradientButton(
-                        text: 'Login With OTP',
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => LoginWithOtpScreen(),
-                            ),
-                          );
-                        },
-                        height: 38,
-                        radius: 22,
-                        fontSize: 15,
-                      ),
+                      // const SizedBox(height: 9),
+                      // GradientButton(
+                      //   text: 'Login With OTP',
+                      //   onPressed: () {
+                      //     Navigator.push(
+                      //       context,
+                      //       MaterialPageRoute(
+                      //         builder: (context) => LoginWithOtpScreen(),
+                      //       ),
+                      //     );
+                      //   },
+                      //   height: 38,
+                      //   radius: 22,
+                      //   fontSize: 15,
+                      // ),
                       const SizedBox(height: 9),
                       GradientButton(
                         text: 'Login With Google',
-                        onPressed: () {},
+                        onPressed: _handleGoogleLogin,
                         height: 38,
                         radius: 22,
                         fontSize: 15,
                       ),
                       const SizedBox(height: 13),
-                      TextButton(
-                        style: TextButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.all(0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        onPressed: () {},
-                        child: const Text(
-                          'Forgot Password?',
-                          style: TextStyle(
-                            color: Color(0xFF6C63FF),
-                            fontSize: 13,
-                            fontFamily: 'SF Pro Display',
-                          ),
-                        ),
-                      ),
-                      TextButton(
-                        style: TextButton.styleFrom(
-                          visualDensity: VisualDensity.compact,
-                          padding: const EdgeInsets.all(0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        onPressed: () {},
-                        child: const Text(
-                          'New here? Create an account',
-                          style: TextStyle(
-                            color: Color(0xFF6C63FF),
-                            fontSize: 13,
-                            fontFamily: 'SF Pro Display',
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                 ),
@@ -283,37 +464,7 @@ class _LoginScreenState extends State<LoginScreen>
       ),
     );
   }
-
-  Widget _roundedField({required String label, required bool isPassword}) =>
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 1.5),
-        child: TextField(
-          obscureText: isPassword,
-          cursorColor: const Color(0xFF6C63FF),
-          style: const TextStyle(fontSize: 14.5),
-          decoration: InputDecoration(
-            labelText: label,
-            labelStyle: const TextStyle(
-              fontSize: 13.5,
-              color: Colors.black87,
-              fontFamily: 'SF Pro Display',
-            ),
-            filled: true,
-            fillColor: Colors.white,
-            contentPadding:
-                const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(18),
-              borderSide: BorderSide.none,
-            ),
-          ),
-        ),
-      );
 }
-
-// Keep existing GradientButton, GradientText, and MovingTrianglePainter classes here (unchanged).
-
-// --- GradientButton and GradientText classes stay the same as before ---
 
 class GradientButton extends StatelessWidget {
   final String text;
@@ -388,12 +539,9 @@ class GradientText extends StatelessWidget {
   Widget build(BuildContext context) {
     return ShaderMask(
       blendMode: BlendMode.srcIn,
-      shaderCallback: (bounds) => gradient
-          .createShader(Rect.fromLTWH(0, 0, bounds.width, bounds.height)),
-      child: Text(
-        text,
-        style: style,
-      ),
+      shaderCallback: (bounds) =>
+          gradient.createShader(Rect.fromLTWH(0, 0, bounds.width, bounds.height)),
+      child: Text(text, style: style),
     );
   }
 }
@@ -413,7 +561,5 @@ class MovingTrianglePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant MovingTrianglePainter oldDelegate) {
-    return false;
-  }
+  bool shouldRepaint(covariant MovingTrianglePainter oldDelegate) => false;
 }

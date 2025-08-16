@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'dart:async';
-import 'login_screen.dart'; // Replace with your actual login screen
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'login_screen.dart';
+import 'dashboard_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // ADD
 
-void main() {
+final storage = FlutterSecureStorage();
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();          // ENSURE
+  await dotenv.load(fileName: ".env");               // ADD: loads API_URL
   runApp(const MyApp());
 }
 
@@ -15,11 +23,15 @@ class MyApp extends StatelessWidget {
       title: 'Iron Board',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        fontFamily: 'SF Pro Display', // Optional: your custom font
+        fontFamily: 'SF Pro Display',
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
       ),
       home: const SplashScreen(),
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/dashboard': (context) => const DashboardScreen(),
+      },
     );
   }
 }
@@ -38,25 +50,31 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-
     _controller = AnimationController(
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-
     _animation = CurvedAnimation(
       parent: _controller,
       curve: Curves.easeInOut,
     );
-
     _controller.forward();
+    _routeByAuthToken();
+  }
 
-    Timer(const Duration(seconds: 2), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
-    });
+  Future<void> _routeByAuthToken() async {
+    await Future.delayed(const Duration(seconds: 2));
+    String? token = await storage.read(key: 'auth_token_jwt');
+    if (token == null || token.isEmpty) {
+      token = await storage.read(key: 'auth_token');
+    }
+    if (mounted) {
+      if (token != null && token.isNotEmpty) {
+        Navigator.pushReplacementNamed(context, '/dashboard');
+      } else {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+    }
   }
 
   @override

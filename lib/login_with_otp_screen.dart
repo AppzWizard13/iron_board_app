@@ -2,10 +2,13 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:http/http.dart' as http;
+import 'package:another_flushbar/flushbar.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+
 import 'login_screen.dart';
 import 'verify_otp_screen.dart'; // Make sure this is the correct import path
-
 
 class LoginWithOtpScreen extends StatefulWidget {
   @override
@@ -17,11 +20,14 @@ class _LoginWithOtpScreenState extends State<LoginWithOtpScreen>
   late AnimationController _ctrl;
   final TextEditingController _phoneController = TextEditingController();
   bool _isLoading = false;
-  final String apiUrl = 'http://127.0.0.1:8000/api/send-otp/';
+  late String apiUrl; 
+
 
   @override
   void initState() {
     super.initState();
+    final baseUrl = dotenv.env['API_URL'] ?? 'https://example.com';
+    apiUrl = '$baseUrl/api/send-otp/';
     _ctrl = AnimationController(
       duration: const Duration(seconds: 20),
       vsync: this,
@@ -41,11 +47,25 @@ class _LoginWithOtpScreenState extends State<LoginWithOtpScreen>
         end: Alignment.bottomRight,
       );
 
+  // Use Flushbar to show message top right, 50% black, rounded!
+  void _showTopRightFlushBar(String message) {
+    Flushbar(
+      message: message,
+      margin: const EdgeInsets.only(top: 40, right: 16, left: 100),
+      borderRadius: BorderRadius.circular(12),
+      backgroundColor: Colors.black.withOpacity(0.5),
+      flushbarPosition: FlushbarPosition.TOP,
+      duration: const Duration(seconds: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      forwardAnimationCurve: Curves.easeOut,
+      reverseAnimationCurve: Curves.easeIn,
+    ).show(context);
+  }
 
   Future<void> _sendOtp() async {
     final phone = _phoneController.text.trim();
     if (phone.isEmpty) {
-      _showMessage("Please enter your phone number");
+      _showTopRightFlushBar("Please enter your phone number");
       return;
     }
 
@@ -53,7 +73,7 @@ class _LoginWithOtpScreenState extends State<LoginWithOtpScreen>
 
     try {
       final response = await http.post(
-        Uri.parse(apiUrl),
+        Uri.parse(apiUrl), // ✅ safe: apiUrl set in initState
         headers: {'Content-Type': 'application/json'},
         body: json.encode({"phone_number": phone}),
       );
@@ -61,9 +81,8 @@ class _LoginWithOtpScreenState extends State<LoginWithOtpScreen>
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200) {
-        _showMessage(data['message'] ?? "OTP sent successfully");
-
-        // ✅ Navigate using MaterialPageRoute and pass phone to VerifyOtpScreen
+        _showTopRightFlushBar(data['message'] ?? "OTP sent successfully");
+        // Navigate and pass phone to VerifyOtpScreen
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -71,19 +90,13 @@ class _LoginWithOtpScreenState extends State<LoginWithOtpScreen>
           ),
         );
       } else {
-        _showMessage(data['message'] ?? "Failed to send OTP");
+        _showTopRightFlushBar(data['message'] ?? "Failed to send OTP");
       }
     } catch (e) {
-      _showMessage("Something went wrong. Please try again.");
+      _showTopRightFlushBar("Something went wrong. Please try again.");
     } finally {
       setState(() => _isLoading = false);
     }
-  }
-
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
-    );
   }
 
   @override
@@ -206,7 +219,10 @@ class _LoginWithOtpScreenState extends State<LoginWithOtpScreen>
                       ),
                       const SizedBox(height: 20),
                       _isLoading
-                          ? const CircularProgressIndicator()
+                          ? const SpinKitFadingCircle(
+                              color: Color(0xFFA32EFF), // or your accent brand color
+                              size: 40,
+                            )
                           : GradientButton(
                               text: 'Send OTP',
                               onPressed: _sendOtp,
@@ -248,6 +264,7 @@ class _LoginWithOtpScreenState extends State<LoginWithOtpScreen>
   }
 }
 
+// Copied directly from your original code
 class GradientButton extends StatelessWidget {
   final String text;
   final VoidCallback onPressed;
