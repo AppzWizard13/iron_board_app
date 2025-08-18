@@ -11,7 +11,7 @@ import 'calendar_page.dart';
 import 'progress_overview.dart';
 import 'profile_page.dart';
 import 'qr_scan_screen.dart';
-import 'home_dashboard_tab.dart'; // <-- import your new file!
+import 'home_dashboard_tab.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -24,7 +24,6 @@ class DashboardScreen extends StatefulWidget {
 class LoweredCenterDockedFabLocation extends FloatingActionButtonLocation {
   final double offsetY;
   const LoweredCenterDockedFabLocation({this.offsetY = 14});
-
   @override
   Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
     final double fabX =
@@ -153,22 +152,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final bool selected = _selectedIndex == index;
     return GestureDetector(
       onTap: () => _onItemTapped(index),
-      child: SizedBox(
-        width: 72,
-        height: 72,
-        child: Center(
-          child: Icon(
-            iconData,
-            size: 34,
-            color: selected ? kGradient.colors.last : Colors.black38,
-          ),
-        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return SizedBox(
+            width: constraints.maxWidth * 0.21, // Responsive width
+            height: double.infinity,
+            child: Center(
+              child: Icon(
+                iconData,
+                size: constraints.maxHeight * 0.51, // Responsive icon size
+                color: selected ? kGradient.colors.last : Colors.black38,
+              ),
+            ),
+          );
+        },
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final screenWidth = media.size.width;
+    final screenHeight = media.size.height;
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: Colors.white,
@@ -178,17 +184,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         centerTitle: true,
         title: Text(
           _titles[_selectedIndex],
-          style: const TextStyle(
+          style: TextStyle(
             color: Colors.black87,
             fontWeight: FontWeight.w600,
-            fontSize: 22,
+            fontSize: screenWidth * 0.055, // Responsive font size
             letterSpacing: 0.3,
           ),
         ),
         leading: Padding(
-          padding: const EdgeInsets.only(left: 12.0),
+          padding: EdgeInsets.only(left: screenWidth * 0.03),
           child: SizedBox(
-            width: 40, height: 40,
+            width: screenWidth * 0.12, height: screenWidth * 0.12,
             child: Image.asset(
               'assets/logo.png',
               fit: BoxFit.contain,
@@ -197,13 +203,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 16, top: 6),
+            padding: EdgeInsets.only(right: screenWidth * 0.04, top: screenWidth * 0.015),
             child: GestureDetector(
               onTap: () {
                 setState(() => _selectedIndex = 3);
               },
               child: Container(
-                width: 40, height: 40,
+                width: screenWidth * 0.11, height: screenWidth * 0.11,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: kGradient,
@@ -217,10 +223,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                 ),
                 alignment: Alignment.center,
-                child: const Icon(
+                child: Icon(
                   Icons.person,
                   color: Colors.white,
-                  size: 22,
+                  size: screenWidth * 0.055,
                 ),
               ),
             ),
@@ -235,20 +241,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
               error: _error,
               onReload: _fetchUserProfile,
             )
-          : _pages[_selectedIndex - 1], // Note: index-1 because first tab is now the separate widget
+          : _pages[_selectedIndex - 1],
+
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),
         notchMargin: 3.0,
         color: Colors.white,
         elevation: 8,
         child: SizedBox(
-          height: 60,
+          height: screenHeight * 0.07, // Responsive height
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: <Widget>[
               _buildNavIcon(Icons.dashboard_outlined, 0),
               _buildNavIcon(Icons.calendar_month_rounded, 1),
-              const SizedBox(width: 100),
+              SizedBox(width: screenWidth * 0.23), // Responsive empty space for FAB
               _buildNavIcon(Icons.emoji_food_beverage, 2),
               _buildNavIcon(Icons.person, 3),
             ],
@@ -256,8 +263,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
       floatingActionButton: SizedBox(
-        height: 66,
-        width: 66,
+        height: screenWidth * 0.18,
+        width: screenWidth * 0.18,
         child: FloatingActionButton(
           backgroundColor: kGradient.colors.last,
           onPressed: () async {
@@ -291,11 +298,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             }
           },
           shape: const CircleBorder(),
-          child: const Icon(Icons.qr_code_scanner, size: 30, color: Colors.white),
+          child: Icon(Icons.qr_code_scanner, size: screenWidth * 0.081, color: Colors.white),
           elevation: 8,
         ),
       ),
-      floatingActionButtonLocation: const LoweredCenterDockedFabLocation(offsetY: 40),
+      floatingActionButtonLocation: LoweredCenterDockedFabLocation(offsetY: (screenWidth * 0.11)),
     );
   }
 }
