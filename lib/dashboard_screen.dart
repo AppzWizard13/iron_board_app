@@ -24,6 +24,7 @@ class DashboardScreen extends StatefulWidget {
 class LoweredCenterDockedFabLocation extends FloatingActionButtonLocation {
   final double offsetY;
   const LoweredCenterDockedFabLocation({this.offsetY = 14});
+
   @override
   Offset getOffset(ScaffoldPrelayoutGeometry scaffoldGeometry) {
     final double fabX =
@@ -126,9 +127,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _showTopRightFlushBar(BuildContext context, String message) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600;
+    
     Flushbar(
       message: message,
-      margin: const EdgeInsets.only(top: 40, right: 16, left: 100),
+      margin: EdgeInsets.only(
+        top: 40, 
+        right: 16, 
+        left: isTablet ? screenWidth * 0.6 : screenWidth * 0.25
+      ),
       borderRadius: BorderRadius.circular(12),
       backgroundColor: Colors.black.withOpacity(0.5),
       flushbarPosition: FlushbarPosition.TOP,
@@ -150,89 +158,111 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildNavIcon(IconData iconData, int index) {
     final bool selected = _selectedIndex == index;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isTablet = screenWidth > 600;
+    final iconSize = isTablet ? 38.0 : 34.0;
+    final containerSize = isTablet ? 80.0 : 72.0;
+    
     return GestureDetector(
       onTap: () => _onItemTapped(index),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          return SizedBox(
-            width: constraints.maxWidth * 0.21, // Responsive width
-            height: double.infinity,
-            child: Center(
-              child: Icon(
-                iconData,
-                size: constraints.maxHeight * 0.51, // Responsive icon size
-                color: selected ? kGradient.colors.last : Colors.black38,
-              ),
-            ),
-          );
-        },
+      child: SizedBox(
+        width: containerSize,
+        height: containerSize,
+        child: Center(
+          child: Icon(
+            iconData,
+            size: iconSize,
+            color: selected ? kGradient.colors.last : Colors.black38,
+          ),
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final screenWidth = media.size.width;
-    final screenHeight = media.size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isTablet = screenWidth > 600;
+    final isLargeScreen = screenWidth > 900;
+    
+    // Responsive sizing
+    final appBarHeight = isTablet ? 70.0 : 56.0;
+    final titleFontSize = isTablet ? 26.0 : 22.0;
+    final logoSize = isTablet ? 50.0 : 40.0;
+    final profileIconSize = isTablet ? 50.0 : 40.0;
+    final profileIconInnerSize = isTablet ? 26.0 : 22.0;
+    final fabSize = isTablet ? 76.0 : 66.0;
+    final fabIconSize = isTablet ? 34.0 : 30.0;
+    final bottomNavHeight = isTablet ? 70.0 : 60.0;
+    final fabOffset = isTablet ? 45.0 : 40.0;
+
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: Colors.white,
-      appBar: AppBar(
-        elevation: 0.5,
-        backgroundColor: Colors.white,
-        centerTitle: true,
-        title: Text(
-          _titles[_selectedIndex],
-          style: TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.w600,
-            fontSize: screenWidth * 0.055, // Responsive font size
-            letterSpacing: 0.3,
-          ),
-        ),
-        leading: Padding(
-          padding: EdgeInsets.only(left: screenWidth * 0.03),
-          child: SizedBox(
-            width: screenWidth * 0.12, height: screenWidth * 0.12,
-            child: Image.asset(
-              'assets/logo.png',
-              fit: BoxFit.contain,
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(appBarHeight),
+        child: AppBar(
+          elevation: 0.5,
+          backgroundColor: Colors.white,
+          centerTitle: true,
+          title: Text(
+            _titles[_selectedIndex],
+            style: TextStyle(
+              color: Colors.black87,
+              fontWeight: FontWeight.w600,
+              fontSize: titleFontSize,
+              letterSpacing: 0.3,
             ),
           ),
-        ),
-        actions: [
-          Padding(
-            padding: EdgeInsets.only(right: screenWidth * 0.04, top: screenWidth * 0.015),
-            child: GestureDetector(
-              onTap: () {
-                setState(() => _selectedIndex = 3);
-              },
-              child: Container(
-                width: screenWidth * 0.11, height: screenWidth * 0.11,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: kGradient,
-                  boxShadow: [
-                    BoxShadow(
-                      color: kGradient.colors.last.withOpacity(0.1),
-                      blurRadius: 8,
-                      offset: const Offset(0, 3),
-                      spreadRadius: 1,
-                    )
-                  ],
-                ),
-                alignment: Alignment.center,
-                child: Icon(
-                  Icons.person,
-                  color: Colors.white,
-                  size: screenWidth * 0.055,
-                ),
+          leading: Padding(
+            padding: EdgeInsets.only(left: isTablet ? 16.0 : 12.0),
+            child: SizedBox(
+              width: logoSize,
+              height: logoSize,
+              child: Image.asset(
+                'assets/logo.png',
+                fit: BoxFit.contain,
               ),
             ),
           ),
-        ],
-        iconTheme: const IconThemeData(color: Colors.black87),
+          actions: [
+            Padding(
+              padding: EdgeInsets.only(
+                right: isTablet ? 20.0 : 16.0, 
+                top: isTablet ? 10.0 : 6.0
+              ),
+              child: GestureDetector(
+                onTap: () {
+                  setState(() => _selectedIndex = 3);
+                },
+                child: Container(
+                  width: profileIconSize,
+                  height: profileIconSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: kGradient,
+                    boxShadow: [
+                      BoxShadow(
+                        color: kGradient.colors.last.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                        spreadRadius: 1,
+                      )
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.person,
+                    color: Colors.white,
+                    size: profileIconInnerSize,
+                  ),
+                ),
+              ),
+            ),
+          ],
+          iconTheme: const IconThemeData(color: Colors.black87),
+        ),
       ),
       body: _selectedIndex == 0
           ? HomeDashboardTab(
@@ -242,20 +272,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onReload: _fetchUserProfile,
             )
           : _pages[_selectedIndex - 1],
-
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),
-        notchMargin: 3.0,
+        notchMargin: isTablet ? 4.0 : 3.0,
         color: Colors.white,
         elevation: 8,
         child: SizedBox(
-          height: screenHeight * 0.07, // Responsive height
+          height: bottomNavHeight,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: <Widget>[
               _buildNavIcon(Icons.dashboard_outlined, 0),
               _buildNavIcon(Icons.calendar_month_rounded, 1),
-              SizedBox(width: screenWidth * 0.23), // Responsive empty space for FAB
+              SizedBox(width: isTablet ? 120 : 100),
               _buildNavIcon(Icons.emoji_food_beverage, 2),
               _buildNavIcon(Icons.person, 3),
             ],
@@ -263,8 +292,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
       floatingActionButton: SizedBox(
-        height: screenWidth * 0.18,
-        width: screenWidth * 0.18,
+        height: fabSize,
+        width: fabSize,
         child: FloatingActionButton(
           backgroundColor: kGradient.colors.last,
           onPressed: () async {
@@ -298,11 +327,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             }
           },
           shape: const CircleBorder(),
-          child: Icon(Icons.qr_code_scanner, size: screenWidth * 0.081, color: Colors.white),
+          child: Icon(
+            Icons.qr_code_scanner, 
+            size: fabIconSize, 
+            color: Colors.white
+          ),
           elevation: 8,
         ),
       ),
-      floatingActionButtonLocation: LoweredCenterDockedFabLocation(offsetY: (screenWidth * 0.11)),
+      floatingActionButtonLocation: LoweredCenterDockedFabLocation(offsetY: fabOffset),
     );
   }
 }
