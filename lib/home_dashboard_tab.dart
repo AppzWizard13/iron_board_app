@@ -8,11 +8,13 @@ import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+
 class HomeDashboardTab extends StatefulWidget {
   final Map<String, dynamic>? userData;
   final bool loading;
   final String? error;
   final VoidCallback? onReload;
+
 
   const HomeDashboardTab({
     Key? key,
@@ -22,9 +24,11 @@ class HomeDashboardTab extends StatefulWidget {
     this.onReload,
   }) : super(key: key);
 
+
   @override
   State<HomeDashboardTab> createState() => _HomeDashboardTabState();
 }
+
 
 class _HomeDashboardTabState extends State<HomeDashboardTab> {
   // Loading/Error states for API sections
@@ -33,12 +37,15 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
   String? _errorToday;
   String? _errorUpcoming;
 
+
   // Data - Modified to match Django API structure
   Map<String, dynamic>? _todayPayload;
   List<Map<String, dynamic>> _upcomingDays = [];
 
+
   // Secure storage for tokens
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
+
 
   @override
   void initState() {
@@ -47,11 +54,13 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
     _fetchUpcoming();
   }
 
+
   // Compose proper base API URL and endpoints
   String _apiBase() {
     final base = dotenv.env['API_URL']?.trim() ?? '';
     return base.replaceAll(RegExp(r'/$'), '');
   }
+
 
   // Compose headers with token (JWT or DRF token supported)
   Future<Map<String, String>> _authHeaders() async {
@@ -64,6 +73,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
     return headers;
   }
 
+
   // Get token from secure storage, preferring JWT if present
   Future<String?> _getAuthToken() async {
     final jwtToken = await _storage.read(key: 'auth_token_jwt');
@@ -72,6 +82,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
     if (drfToken != null && drfToken.trim().isNotEmpty) return drfToken;
     return null;
   }
+
 
   Future<void> _fetchToday() async {
     setState(() {
@@ -83,10 +94,12 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
       final url = Uri.parse('${_apiBase()}/api/workouts/today/');
       final resp = await http.get(url, headers: await _authHeaders());
 
+
       // Debug logs
       print('[TODAY] GET $url');
       print('[TODAY] Status: ${resp.statusCode}');
       print('[TODAY] Body: ${resp.body}');
+
 
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
         final data = json.decode(resp.body) as Map<String, dynamic>;
@@ -110,6 +123,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
     }
   }
 
+
   Future<void> _fetchUpcoming() async {
     setState(() {
       _loadingUpcoming = true;
@@ -120,10 +134,12 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
       final url = Uri.parse('${_apiBase()}/api/workouts/upcoming/');
       final resp = await http.get(url, headers: await _authHeaders());
 
+
       // Debug logs
       print('[UPCOMING] GET $url');
       print('[UPCOMING] Status: ${resp.statusCode}');
       print('[UPCOMING] Body: ${resp.body}');
+
 
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
         final data = json.decode(resp.body) as Map<String, dynamic>;
@@ -149,9 +165,11 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
     }
   }
 
+
   Future<void> _reloadAll() async {
     await Future.wait([_fetchToday(), _fetchUpcoming()]);
   }
+
 
   // Helper method to format date
   String _formatDate(String dateStr) {
@@ -169,6 +187,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
     }
   }
 
+
   // Helper method to calculate total estimated time for all exercises
   int _calculateTotalTime(List<dynamic> activities) {
     int total = 0;
@@ -183,6 +202,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
     return total;
   }
 
+
   @override
   Widget build(BuildContext context) {
     if (widget.loading) {
@@ -193,6 +213,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
         ),
       );
     }
+
 
     if (widget.error != null) {
       return Center(
@@ -212,9 +233,11 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
       );
     }
 
+
     final userName = widget.userData?['name'] ?? 'Member';
     final packageName = widget.userData?['package'] ?? 'Active Plan';
     final renewalDate = widget.userData?['package_expiry_date'] ?? '—';
+
 
     // Parse today's workout data from Django API response
     final todayData = _todayPayload?['data'] as Map<String, dynamic>?;
@@ -222,69 +245,11 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
     final hasWorkoutToday = todayWorkouts.isNotEmpty;
     final todayDayName = todayData?['day_name'] as String? ?? '';
 
+
     // Layout: Top card stays visible; only workout lists scroll
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Fixed top profile card (non-scrollable)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          child: GlassmorphicCard(
-            elevation: 20,
-            shadowColor: kGradient.colors.last.withOpacity(0.1),
-            child: Row(
-              children: [
-                Container(
-                  width: 75,
-                  height: 110,
-                  decoration: BoxDecoration(
-                    gradient: kGradient,
-                    borderRadius: BorderRadius.circular(18),
-                    boxShadow: [
-                      BoxShadow(
-                        color: kGradient.colors.last.withOpacity(0.4),
-                        blurRadius: 15,
-                        offset: const Offset(0, 6),
-                        spreadRadius: 1,
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.fitness_center_rounded,
-                    size: 52,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Welcome back, $userName!",
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildBadge(icon: Icons.badge, text: packageName),
-                        const SizedBox(height: 10),
-                        _buildBadge(icon: Icons.verified_rounded, text: "Active"),
-                        const SizedBox(height: 10),
-                        _buildBadge(icon: Icons.calendar_month, text: "Next Renewal: $renewalDate"),
-                      ],
-                    ),
-                  ),
-                )
-              ],
-            ),
-          ),
-        ),
-
         // Scrollable content: Today's workout + Upcoming workouts
         Expanded(
           child: RefreshIndicator(
@@ -320,6 +285,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                 ),
                 const SizedBox(height: 8),
 
+
                 if (_loadingToday)
                   Center(
                     child: Padding(
@@ -345,6 +311,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                     final estimatedDuration = dayTemplate['estimated_duration'] as String? ?? '';
                     final activities = dayTemplate['activities'] as List? ?? [];
 
+
                     if (isRestDay) {
                       return _summaryTile(
                         icon: Icons.free_breakfast,
@@ -353,6 +320,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                         sub: templateName,
                       );
                     }
+
 
                     // Summary card for the workout
                     return Column(
@@ -374,6 +342,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                           final formCues = activity['form_cues'] as String? ?? '';
                           final estimatedDuration = activity['estimated_duration'] as String? ?? '';
 
+
                           final descParts = <String>[
                             "Sets: $sets",
                             "Reps: $reps",
@@ -381,6 +350,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                             if (formCues.isNotEmpty) "Form: $formCues",
                           ];
                           final description = descParts.join(" • ");
+
 
                           return _exerciseListTile(
                             icon: Icons.fitness_center,
@@ -395,7 +365,9 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                   }).toList(),
                 ],
 
+
                 const SizedBox(height: 20),
+
 
                 // Upcoming Workouts Header
                 Row(
@@ -425,6 +397,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                 ),
                 const SizedBox(height: 8),
 
+
                 if (_loadingUpcoming)
                   Center(
                     child: Padding(
@@ -447,46 +420,131 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                       final workouts = day['workouts'] as List? ?? [];
                       final totalWorkouts = day['total_workouts'] as int? ?? 0;
 
-                      return ExpansionTile(
-                        leading: Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.green.withOpacity(0.15),
-                            shape: BoxShape.circle,
+                      return Card(
+                        elevation: 6,
+                        margin: const EdgeInsets.symmetric(vertical: 4),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                        shadowColor: kGradient.colors.last.withOpacity(0.18),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [Colors.white.withOpacity(0.98), Colors.grey.shade50],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: Theme(
+                              data: Theme.of(context).copyWith(
+                                dividerColor: Colors.transparent, // Remove the black line
+                                splashColor: Colors.transparent,
+                                highlightColor: Colors.transparent,
+                              ),
+                              child: ExpansionTile(
+                                tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                childrenPadding: const EdgeInsets.all(0), // Remove default padding
+                                backgroundColor: Colors.transparent,
+                                collapsedBackgroundColor: Colors.transparent,
+                                iconColor: kGradient.colors.last,
+                                collapsedIconColor: kGradient.colors.last,
+                                leading: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.15),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(Icons.calendar_month, color: Colors.green, size: 20),
+                                ),
+                                title: Text(
+                                  "$dayName (${_formatDate(date)})",
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 15,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                subtitle: Text(
+                                  "$totalWorkouts workout(s)",
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.black54,
+                                  ),
+                                ),
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    child: Column(
+                                      children: workouts.map((workout) {
+                                        final templateName = workout['template_name'] as String? ?? '';
+                                        final trainerName = workout['trainer_name'] as String? ?? '';
+                                        final dayTemplate = workout['day_template'] as Map<String, dynamic>? ?? {};
+                                        final workoutName = dayTemplate['name'] as String? ?? 'Workout';
+                                        final isRestDay = dayTemplate['is_rest_day'] as bool? ?? false;
+                                        final activities = dayTemplate['activities'] as List? ?? [];
+                                        final estimatedDuration = dayTemplate['estimated_duration'] as String? ?? '';
+
+                                        if (isRestDay) {
+                                          return Padding(
+                                            padding: const EdgeInsets.only(bottom: 8),
+                                            child: _summaryTile(
+                                              icon: Icons.free_breakfast,
+                                              title: "Rest Day",
+                                              value: "Recovery",
+                                              sub: templateName,
+                                            ),
+                                          );
+                                        }
+
+                                        // Show full workout details like today's workout
+                                        return Column(
+                                          children: [
+                                            // Summary card for the workout
+                                            _summaryTile(
+                                              icon: Icons.event_available,
+                                              title: workoutName,
+                                              value: estimatedDuration.isEmpty ? "—" : estimatedDuration,
+                                              sub: "$templateName • by $trainerName",
+                                            ),
+                                            const SizedBox(height: 8),
+                                            
+                                            // Render all exercises for this workout
+                                            ...activities.map((activity) {
+                                              final exerciseName = activity['exercise']?['name'] as String? ?? '';
+                                              final sets = activity['sets']?.toString() ?? '-';
+                                              final reps = activity['reps']?.toString() ?? '-';
+                                              final restTime = activity['rest_time'] as String? ?? '';
+                                              final formCues = activity['form_cues'] as String? ?? '';
+                                              final estimatedDuration = activity['estimated_duration'] as String? ?? '';
+
+                                              final descParts = <String>[
+                                                "Sets: $sets",
+                                                "Reps: $reps",
+                                                if (restTime.isNotEmpty) "Rest: $restTime",
+                                                if (formCues.isNotEmpty) "Form: $formCues",
+                                              ];
+                                              final description = descParts.join(" • ");
+
+                                              return _exerciseListTile(
+                                                icon: Icons.fitness_center,
+                                                label: exerciseName,
+                                                description: description,
+                                                duration: estimatedDuration,
+                                                badgeColor: Colors.purple,
+                                              );
+                                            }).toList(),
+                                            
+                                            const SizedBox(height: 16), // Space between workouts
+                                          ],
+                                        );
+                                      }).cast<Widget>().toList(),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                          child: Icon(Icons.calendar_month, color: Colors.green, size: 20),
                         ),
-                        title: Text(
-                          "$dayName (${_formatDate(date)})",
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        subtitle: Text("$totalWorkouts workout(s)"),
-                        children: workouts.map((workout) {
-                          final templateName = workout['template_name'] as String? ?? '';
-                          final dayTemplate = workout['day_template'] as Map<String, dynamic>? ?? {};
-                          final workoutName = dayTemplate['name'] as String? ?? 'Workout';
-                          final isRestDay = dayTemplate['is_rest_day'] as bool? ?? false;
-                          final activities = dayTemplate['activities'] as List? ?? [];
-                          final estimatedDuration = dayTemplate['estimated_duration'] as String? ?? '';
-
-                          if (isRestDay) {
-                            return _exerciseListTile(
-                              icon: Icons.free_breakfast,
-                              label: "Rest Day",
-                              description: templateName,
-                              duration: "Recovery",
-                              badgeColor: Colors.orange,
-                            );
-                          }
-
-                          return _exerciseListTile(
-                            icon: Icons.fitness_center,
-                            label: workoutName,
-                            description: "$templateName • ${activities.length} exercises",
-                            duration: estimatedDuration,
-                            badgeColor: Colors.green,
-                          );
-                        }).cast<Widget>().toList(),
                       );
                     }).toList(),
                   ),
@@ -497,6 +555,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
       ],
     );
   }
+
 
   // Reusable badge
   Widget _buildBadge({required IconData icon, required String text}) {
@@ -530,6 +589,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
       ),
     );
   }
+
 
   // Summary ListTile
   Widget _summaryTile({
@@ -579,6 +639,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
     );
   }
 
+
   // Exercise tile
   Widget _exerciseListTile({
     required IconData icon,
@@ -588,6 +649,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
     required Color badgeColor,
   }) {
     final Color valueColor = Colors.deepPurpleAccent.withOpacity(0.82);
+
 
     return Card(
       elevation: 6,
@@ -643,6 +705,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
     );
   }
 
+
   // Empty state tile
   Widget _emptyTile({required String title, String? subtitle}) {
     return Card(
@@ -656,6 +719,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
       ),
     );
   }
+
 
   // Error tile
   Widget _errorTile(String message, {VoidCallback? onRetry}) {
