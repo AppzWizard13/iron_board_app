@@ -10,12 +10,14 @@ import 'package:another_flushbar/flushbar.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
-import 'dashboard_screen.dart'; // Adjust path as needed
+import 'dashboard_screen.dart';
 import 'login_with_otp_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  final VoidCallback toggleTheme;
+  const LoginScreen({super.key, required this.toggleTheme});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -69,30 +71,73 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     ).show(context);
   }
 
+  // Send FCM token to backend after successful authentication
+  Future<void> _sendFCMTokenToBackend(String authToken) async {
+    try {
+      print('Attempting to send FCM token to backend...');
+      
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      print('FCM Token obtained: $fcmToken');
+      
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        final dio = Dio();
+        final baseUrl = dotenv.env['API_URL'] ?? 'https://example.com';
+        
+        final response = await dio.post(
+          '$baseUrl/api/update-fcm-token/',
+          data: {'fcm_token': fcmToken},
+          options: Options(
+            headers: {
+              'Authorization': 'Token $authToken', // Changed from 'Bearer' to 'Token'
+              'Content-Type': 'application/json',
+            },
+          ),
+        );
+
+        if (response.statusCode == 200) {
+          print('FCM token sent to backend successfully: ${response.data}');
+        } else {
+          print('Failed to send FCM token. Status: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      print('Error sending FCM token to backend: $e');
+    }
+  }
+
+
   Future<String?> loginUser(String mobile, String password) async {
     setState(() => isLoading = true);
     final baseUrl = dotenv.env['API_URL'] ?? 'https://example.com';
     final url = Uri.parse('$baseUrl/api-v1/login/');
+    
     try {
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'mobile': mobile, 'password': password}),
       );
+      
       setState(() => isLoading = false);
 
       final decodedJson = json.decode(response.body);
       print("Login response decoded: $decodedJson");
+      
       if (response.statusCode == 200) {
         // Try common key names for access token
         final token = decodedJson['access'] ?? decodedJson['key'];
         if (token != null) {
           await storage.write(key: 'auth_token_jwt', value: token);
           print('Access token stored securely!');
-          // Optionally, you may wish to also store the refresh token
+          
+          // Optionally store refresh token
           if (decodedJson['refresh'] != null) {
             await storage.write(key: 'refresh_token_jwt', value: decodedJson['refresh']);
           }
+
+          // Send FCM token to backend after successful login
+          await _sendFCMTokenToBackend(token);
+          
         } else {
           print('No access token received.');
         }
@@ -103,10 +148,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       }
     } catch (e) {
       setState(() => isLoading = false);
+      print('Login error: $e');
       return 'An error occurred. Please try again.';
     }
   }
-
 
   Future<void> _handleGoogleLogin() async {
     try {
@@ -119,6 +164,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         showTopRightFlushBar('Google sign-in cancelled!');
         return;
       }
+      
       // Get authentication tokens
       final GoogleSignInAuthentication auth = await account.authentication;
       final String? accessToken = auth.accessToken;
@@ -137,6 +183,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         data: {'access_token': accessToken},
         options: Options(contentType: Headers.jsonContentType),
       );
+      
       print("Google login response status: ${response.statusCode}");
       print("Google login response data: ${response.data}");
 
@@ -146,10 +193,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   response.data['key'];
         if (authToken != null) {
           await storage.write(key: 'auth_token', value: authToken);
+          
+          // Send FCM token to backend after successful Google login
+          await _sendFCMTokenToBackend(authToken);
+          
           showTopRightFlushBar('Google login successful!');
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const DashboardScreen()),
+            MaterialPageRoute(
+              builder: (context) => DashboardScreen(toggleTheme: widget.toggleTheme),
+            ),
           );
         } else {
           showTopRightFlushBar('Login succeeded but no auth token received!');
@@ -159,9 +212,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
         showTopRightFlushBar('Google login failed.');
       }
     } catch (e) {
-      if (e is DioError) {
+      if (e is DioException) {
         final data = e.response?.data;
-        // Custom UX: Convert backend "already registered" response to YOUR own text
         if (data is Map && data['non_field_errors'] != null) {
           final errors = data['non_field_errors'];
           if (errors is List && errors.any((err) => err.toString().contains('already registered'))) {
@@ -182,11 +234,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     }
   }
 
-
-
-
-
-
   Widget _roundedField({
     required String label,
     required bool isPassword,
@@ -199,19 +246,17 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           obscureText: isPassword,
           cursorColor: const Color(0xFF6C63FF),
           style: const TextStyle(fontSize: 14.5),
-          keyboardType:
-              isPassword ? TextInputType.text : TextInputType.phone,
+          keyboardType: isPassword ? TextInputType.text : TextInputType.phone,
           decoration: InputDecoration(
             labelText: label,
-            labelStyle: const TextStyle(
+            labelStyle: TextStyle(
               fontSize: 13.5,
-              color: Colors.black87,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
               fontFamily: 'SF Pro Display',
             ),
             filled: true,
-            fillColor: Colors.white,
-            contentPadding:
-                const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+            fillColor: Theme.of(context).cardColor,
+            contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(18),
               borderSide: BorderSide.none,
@@ -223,7 +268,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F9),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: AnimatedBuilder(
         animation: _ctrl,
         builder: (context, child) {
@@ -305,7 +350,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.dashboard_rounded,
+                              Icon(Icons.dashboard_rounded,
                                   color: Colors.white, size: 20),
                               const SizedBox(width: 10),
                               GradientText(
@@ -326,6 +371,39 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                   ),
                 ),
               ),
+              // Theme toggle button in top-right corner
+              SafeArea(
+                child: Align(
+                  alignment: Alignment.topRight,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 20.0, right: 20.0),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(25),
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                        child: Container(
+                          width: 50,
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.18),
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            onPressed: widget.toggleTheme,
+                            icon: Icon(
+                              Theme.of(context).brightness == Brightness.dark
+                                  ? Icons.light_mode
+                                  : Icons.dark_mode,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
               Align(
                 alignment: Alignment.center,
                 child: SingleChildScrollView(
@@ -334,7 +412,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const SizedBox(height: 55),
-                      const Text(
+                      Text(
                         'Welcome Back',
                         style: TextStyle(
                           fontSize: 14,
@@ -344,11 +422,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         ),
                       ),
                       const SizedBox(height: 6),
-                      const Text(
+                      Text(
                         'Login to Your Account',
                         style: TextStyle(
                           fontSize: 20,
-                          color: Colors.black87,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
                           fontWeight: FontWeight.bold,
                           fontFamily: 'SF Pro Display',
                         ),
@@ -377,7 +455,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                             materialTapTargetSize:
                                 MaterialTapTargetSize.shrinkWrap,
                           ),
-                          const Text(
+                          Text(
                             'Remember me',
                             style: TextStyle(fontSize: 13),
                           )
@@ -404,7 +482,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                   showTopRightFlushBar('Login successful');
                                   Navigator.pushReplacement(
                                     context,
-                                    MaterialPageRoute(builder: (context) => const DashboardScreen()),
+                                    MaterialPageRoute(
+                                      builder: (context) => DashboardScreen(toggleTheme: widget.toggleTheme),
+                                    ),
                                   );
                                 } else {
                                   showTopRightFlushBar(errorMessage);
@@ -415,25 +495,10 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                               fontSize: 15,
                             ),
                       const SizedBox(height: 9),
-                      const Text(
+                      Text(
                         'or',
                         style: TextStyle(color: Colors.grey, fontSize: 13),
                       ),
-                      // const SizedBox(height: 9),
-                      // GradientButton(
-                      //   text: 'Login With OTP',
-                      //   onPressed: () {
-                      //     Navigator.push(
-                      //       context,
-                      //       MaterialPageRoute(
-                      //         builder: (context) => LoginWithOtpScreen(),
-                      //       ),
-                      //     );
-                      //   },
-                      //   height: 38,
-                      //   radius: 22,
-                      //   fontSize: 15,
-                      // ),
                       const SizedBox(height: 9),
                       GradientButton(
                         text: 'Login With Google',
@@ -549,6 +614,7 @@ class GradientText extends StatelessWidget {
 class MovingTrianglePainter extends CustomPainter {
   final Color color;
   MovingTrianglePainter({required this.color});
+  
   @override
   void paint(Canvas canvas, Size size) {
     final Paint paint = Paint()..color = color;

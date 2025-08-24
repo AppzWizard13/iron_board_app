@@ -177,7 +177,7 @@ class _CalendarPageState extends State<CalendarPage> {
       context: context,
       barrierDismissible: true,
       builder: (_) => Dialog(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 27.0, horizontal: 26),
@@ -190,7 +190,7 @@ class _CalendarPageState extends State<CalendarPage> {
               ),
               const SizedBox(height: 14),
               if (!isPresent)
-                const Text("No check-in for this day.",
+                Text("No check-in for this day.",
                     style: TextStyle(fontSize: 16, color: Colors.red))
               else
                 Column(
@@ -217,7 +217,7 @@ class _CalendarPageState extends State<CalendarPage> {
               const SizedBox(height: 18),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text("OK", style: TextStyle(fontWeight: FontWeight.bold)),
+                child: Text("OK", style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -724,7 +724,7 @@ class _CalendarPageState extends State<CalendarPage> {
             style: const TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 15,
-              color: Colors.black87,
+              color: null,
             ),
           ),
           trailing: Text(

@@ -663,7 +663,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     if (_isLoadingProfile) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Payment'),
+          title: Text('Payment'),
           backgroundColor: Colors.blue,
         ),
         body: const Center(
@@ -682,7 +682,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     if (_error != null || _userProfile == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Payment'),
+          title: Text('Payment'),
           backgroundColor: Colors.blue,
         ),
         body: Center(
@@ -705,7 +705,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Payment'),
+        title: Text('Payment'),
         backgroundColor: Colors.blue,
       ),
       body: Padding(

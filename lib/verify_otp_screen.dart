@@ -161,7 +161,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> with SingleTickerProv
         decoration: InputDecoration(
           counterText: '',
           filled: true,
-          fillColor: Colors.white,
+          fillColor: Theme.of(context).cardColor,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         ),
         onChanged: (value) {
@@ -178,7 +178,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> with SingleTickerProv
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F9),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: AnimatedBuilder(
         animation: _ctrl,
         builder: (context, child) {
@@ -188,12 +188,12 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> with SingleTickerProv
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 64),
               child: Column(
                 children: [
-                  const Text(
+                  Text(
                     "Verify OTP",
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, fontFamily: 'SF Pro Display'),
                   ),
                   const SizedBox(height: 14),
-                  const Text(
+                  Text(
                     "Enter the 6-digit OTP sent to your mobile",
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14, color: Colors.grey),
@@ -215,11 +215,11 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> with SingleTickerProv
                   const SizedBox(height: 16),
                   TextButton(
                     onPressed: _sendOtp,
-                    child: const Text("Resend OTP"),
+                    child: Text("Resend OTP"),
                   ),
                   TextButton(
                     onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
-                    child: const Text("Back to Login"),
+                    child: Text("Back to Login"),
                   ),
                 ],
               ),

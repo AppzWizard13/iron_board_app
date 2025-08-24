@@ -102,7 +102,7 @@ class _LoginWithOtpScreenState extends State<LoginWithOtpScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F9),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: AnimatedBuilder(
         animation: _ctrl,
         builder: (context, child) {
@@ -176,17 +176,17 @@ class _LoginWithOtpScreenState extends State<LoginWithOtpScreen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const SizedBox(height: 40),
-                      const Text(
+                      Text(
                         'OTP Login',
                         style: TextStyle(
                           fontSize: 20,
-                          color: Colors.black87,
+                          color: null,
                           fontWeight: FontWeight.bold,
                           fontFamily: 'SF Pro Display',
                         ),
                       ),
                       const SizedBox(height: 14),
-                      const Text(
+                      Text(
                         "Enter your mobile number to receive an OTP.",
                         style: TextStyle(
                           fontSize: 14,
@@ -204,11 +204,11 @@ class _LoginWithOtpScreenState extends State<LoginWithOtpScreen>
                           labelText: "Enter your mobile number",
                           labelStyle: const TextStyle(
                             fontSize: 13.5,
-                            color: Colors.black87,
+                            color: null,
                             fontFamily: 'SF Pro Display',
                           ),
                           filled: true,
-                          fillColor: Colors.white,
+                          fillColor: Theme.of(context).cardColor,
                           contentPadding: const EdgeInsets.symmetric(
                               vertical: 10, horizontal: 15),
                           border: OutlineInputBorder(
@@ -231,7 +231,7 @@ class _LoginWithOtpScreenState extends State<LoginWithOtpScreen>
                               fontSize: 15,
                             ),
                       const SizedBox(height: 16),
-                      const Text("or",
+                      Text("or",
                           style: TextStyle(color: Colors.grey, fontSize: 13)),
                       const SizedBox(height: 12),
                       GradientButton(

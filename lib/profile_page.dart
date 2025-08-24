@@ -9,7 +9,6 @@ import 'login_screen.dart';
 import 'package:another_flushbar/flushbar.dart';
 import 'package:numberpicker/numberpicker.dart';
 
-
 // Utility: BMI calculation
 String calculateBMI(dynamic weight, dynamic height) {
   if (weight == null || height == null) return "—";
@@ -22,7 +21,8 @@ String calculateBMI(dynamic weight, dynamic height) {
 
 class ProfilePage extends StatefulWidget {
   final VoidCallback? onSignOut;
-  const ProfilePage({this.onSignOut, Key? key}) : super(key: key);
+  final VoidCallback toggleTheme; // Add this field
+  const ProfilePage({this.onSignOut, required this.toggleTheme, Key? key}) : super(key: key);
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -147,7 +147,7 @@ class _ProfilePageState extends State<ProfilePage> {
         return StatefulBuilder(
           builder: (context, setStateSB) {
             return AlertDialog(
-              title: const Text("Track Measurements"),
+              title: Text("Track Measurements"),
               content: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 360),
                 child: Row(
@@ -159,7 +159,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
+                          Text(
                             "Height (cm)",
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
@@ -192,7 +192,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
+                          Text(
                             "Weight (kg)",
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
@@ -223,11 +223,11 @@ class _ProfilePageState extends State<ProfilePage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx, false),
-                  child: const Text("Cancel"),
+                  child: Text("Cancel"),
                 ),
                 ElevatedButton(
                   onPressed: () => Navigator.pop(ctx, true),
-                  child: const Text("Save"),
+                  child: Text("Save"),
                 ),
               ],
             );
@@ -265,7 +265,6 @@ class _ProfilePageState extends State<ProfilePage> {
       _showTopRightFlushBar("Network error: $e", color: Colors.redAccent);
     }
   }
-
 
   Future<bool> signOutApiCall(BuildContext context) async {
     final baseUrl = dotenv.env['API_URL'] ?? 'https://example.com';
@@ -334,7 +333,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 13.5,
-                      color: Colors.black87,
+                      color: null,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -379,7 +378,6 @@ class _ProfilePageState extends State<ProfilePage> {
         : content;
   }
 
-
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -401,8 +399,8 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 14),
               ElevatedButton.icon(
                 onPressed: _fetchUserProfile,
-                icon: const Icon(Icons.refresh),
-                label: const Text("Retry"),
+                icon: Icon(Icons.refresh),
+                label: Text("Retry"),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kGradient.colors.last,
                 ),
@@ -592,7 +590,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-
  Widget _mainProfileCompactCard({
     required String? avatarUrl,
     required String name,
@@ -644,7 +641,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ? Image.network(avatarUrl, fit: BoxFit.cover)
                     : Container(
                         color: Colors.white12,
-                        child: const Icon(Icons.person, size: 35, color: Colors.white),
+                        child: Icon(Icons.person, size: 35, color: Colors.white),
                       ),
               ),
             ),
@@ -665,7 +662,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.email, color: Colors.white, size: 16),
+                      Icon(Icons.email, color: Colors.white, size: 16),
                       const SizedBox(width: 3),
                       Text(email, style: const TextStyle(color: Colors.white, fontSize: 13)),
                     ],
@@ -674,7 +671,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.phone, color: Colors.white, size: 16),
+                      Icon(Icons.phone, color: Colors.white, size: 16),
                       const SizedBox(width: 3),
                       Text(phone, style: const TextStyle(color: Colors.white, fontSize: 13)),
                     ],
@@ -683,11 +680,11 @@ class _ProfilePageState extends State<ProfilePage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.start,
                     children: [
-                      const Icon(Icons.fitness_center, color: Colors.white, size: 16),
+                      Icon(Icons.fitness_center, color: Colors.white, size: 16),
                       const SizedBox(width: 4),
                       Text(gymName, style: const TextStyle(color: Colors.white, fontSize: 13)),
                       const SizedBox(width: 14),
-                      const Icon(Icons.card_membership, color: Colors.white, size: 16),
+                      Icon(Icons.card_membership, color: Colors.white, size: 16),
                       const SizedBox(width: 4),
                       Text(membership, style: const TextStyle(color: Colors.white, fontSize: 13)),
                     ],
@@ -695,7 +692,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.location_on, color: Colors.white, size: 16),
+                      Icon(Icons.location_on, color: Colors.white, size: 16),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
@@ -763,16 +760,15 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-
   Future<void> _showLogoutConfirm(BuildContext context) async {
     final doLogout = await showDialog<bool>(
       context: context,
       builder: (BuildContext ctx) => AlertDialog(
-        title: const Text("Logging  Out"),
-        content: const Text("Are you sure you want to log out?"),
+        title: Text("Logging  Out"),
+        content: Text("Are you sure you want to log out?"),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
-          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text("Logout")),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text("Cancel")),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: Text("Logout")),
         ],
       ),
     );
@@ -781,7 +777,12 @@ class _ProfilePageState extends State<ProfilePage> {
       if (result) {
         if (widget.onSignOut != null) widget.onSignOut!();
         Navigator.pushAndRemoveUntil(
-            context, MaterialPageRoute(builder: (context) => const LoginScreen()), (route) => false);
+            context, 
+            MaterialPageRoute(
+              builder: (context) => LoginScreen(toggleTheme: widget.toggleTheme) // Pass toggleTheme here
+            ), 
+            (route) => false
+        );
       }
     }
   }

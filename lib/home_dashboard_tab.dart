@@ -225,8 +225,8 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
             if (widget.onReload != null)
               ElevatedButton.icon(
                 onPressed: widget.onReload,
-                icon: const Icon(Icons.refresh),
-                label: const Text("Retry"),
+                icon: Icon(Icons.refresh),
+                label: Text("Retry"),
               )
           ],
         ),
@@ -266,7 +266,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     TextButton.icon(
-                      icon: const Icon(Icons.refresh, size: 18),
+                      icon: Icon(Icons.refresh, size: 18),
                       onPressed: _fetchToday,
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -373,12 +373,12 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       "Upcoming Workouts",
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     TextButton.icon(
-                      icon: const Icon(Icons.refresh, size: 18),
+                      icon: Icon(Icons.refresh, size: 18),
                       onPressed: _fetchUpcoming,
                       style: TextButton.styleFrom(
                         padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -461,7 +461,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
                                   style: const TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 15,
-                                    color: Colors.black87,
+                                    color: null,
                                   ),
                                 ),
                                 subtitle: Text(
@@ -682,7 +682,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
             style: const TextStyle(
               fontWeight: FontWeight.w600,
               fontSize: 15,
-              color: Colors.black87,
+              color: null,
             ),
           ),
           subtitle: Text(
@@ -713,7 +713,7 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
       color: Colors.grey.shade100,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        leading: const Icon(Icons.info_outline, color: Colors.grey),
+        leading: Icon(Icons.info_outline, color: Colors.grey),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: subtitle == null ? null : Text(subtitle),
       ),
@@ -728,15 +728,15 @@ class _HomeDashboardTabState extends State<HomeDashboardTab> {
       color: Colors.red.shade50,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        leading: const Icon(Icons.error_outline, color: Colors.red),
-        title: const Text("Error", style: TextStyle(fontWeight: FontWeight.w700, color: Colors.red)),
+        leading: Icon(Icons.error_outline, color: Colors.red),
+        title: Text("Error", style: TextStyle(fontWeight: FontWeight.w700, color: Colors.red)),
         subtitle: Text(message, style: const TextStyle(color: Colors.red)),
         trailing: onRetry == null
             ? null
             : TextButton.icon(
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh, size: 16),
-                label: const Text("Retry"),
+                icon: Icon(Icons.refresh, size: 16),
+                label: Text("Retry"),
               ),
       ),
     );

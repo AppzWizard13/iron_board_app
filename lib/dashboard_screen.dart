@@ -15,9 +15,9 @@ import 'home_dashboard_tab.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'payment_screen.dart';
 
-
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({Key? key}) : super(key: key);
+  final VoidCallback toggleTheme;  // Add this field
+  const DashboardScreen({super.key, required this.toggleTheme});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -64,7 +64,6 @@ class ResponsiveHelper {
     );
   }
 }
-
 
 enum ScreenSize { small, medium, large, extraLarge }
 
@@ -259,8 +258,6 @@ class ResponsiveDimensions {
   }
 }
 
-
-
 class _DashboardScreenState extends State<DashboardScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   static const _storage = FlutterSecureStorage();
@@ -284,6 +281,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       CalendarPage(),
       const WeightProgressChart(),
       ProfilePage(
+        toggleTheme: widget.toggleTheme, // Add this line to fix the error
         onSignOut: () {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(
@@ -377,7 +375,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             const SizedBox(width: 4), // Reduced from 6
-            const Text(
+            Text(
               'Active',
               style: TextStyle(
                 color: Colors.green,
@@ -415,7 +413,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 const SizedBox(width: 4), // Reduced from 6
-                const Text(
+                Text(
                   'Inactive',
                   style: TextStyle(
                     color: Colors.red,
@@ -445,14 +443,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text('Pay Now'),
+              child: Text('Pay Now'),
             ),
           ),
         ],
       );
     }
   }
-
 
   // Enhanced default profile icon
   Widget _buildDefaultProfileIcon(double size) {
@@ -834,49 +831,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     return Scaffold(
       key: _scaffoldKey,
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: PreferredSize(
         preferredSize: Size.fromHeight(dimensions.appBarHeight),
         child: AppBar(
+          leadingWidth: 70, 
           elevation: 0.5,
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
           centerTitle: true,
           title: Text(
             _titles[_selectedIndex],
             style: TextStyle(
-              color: Colors.black87,
+              color: Theme.of(context).textTheme.bodyLarge?.color,
               fontWeight: FontWeight.w600,
               fontSize: dimensions.titleFontSize,
               letterSpacing: 0.3,
             ),
           ),
-          leading: Padding(
-            padding: dimensions.horizontalPadding.copyWith(
-              right: 0,
-              top: dimensions.appBarHeight * 0.15,
-              bottom: dimensions.appBarHeight * 0.15,
-            ),
-            child: Container(
-              width: dimensions.logoSize,
-              height: dimensions.logoSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: kGradient,
-              ),
-              child: Icon(
-                Icons.fitness_center,
-                color: Colors.white,
-                size: dimensions.logoSize * 0.6,
+          leading: Container(
+            margin: const EdgeInsets.only(left: 0.0), // Add left margin
+            child: Center(
+              child: SizedBox(
+                height: 50,
+                child: Image.asset(
+                  'assets/app_icon.png',
+                  width: 40,
+                  height: 40,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => Icon(Icons.fitness_center, color: Colors.blue),
+                ),
               ),
             ),
           ),
+
           actions: [
             Padding(
-              padding: dimensions.appBarActionsPadding,
+              padding: const EdgeInsets.fromLTRB(0.0, 0.0, 25.0, 0.0),
               child: GestureDetector(
-                onTap: () {
-                  setState(() => _selectedIndex = 3);
-                },
+                onTap: () => setState(() => _selectedIndex = 3),
                 child: Container(
                   width: dimensions.profileIconSize,
                   height: dimensions.profileIconSize,
@@ -892,23 +884,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       )
                     ],
                   ),
-                  child: ClipOval(
-                    child: _userData?['profile_picture'] != null && _userData!['profile_picture'].toString().isNotEmpty
-                        ? Image.network(
-                            _userData!['profile_picture'],
-                            fit: BoxFit.cover,
-                            width: dimensions.profileIconSize,
-                            height: dimensions.profileIconSize,
-                            errorBuilder: (context, error, stackTrace) {
-                              return _buildDefaultProfileIcon(dimensions.profileIconSize);
-                            },
-                          )
-                        : _buildDefaultProfileIcon(dimensions.profileIconSize),
+                  child: Icon(
+                    Icons.settings,
+                    color: Colors.white,
+                    size: dimensions.profileIconSize * 0.5,
                   ),
                 ),
               ),
             ),
           ],
+
+
+
           iconTheme: const IconThemeData(color: Colors.black87),
         ),
       ),
@@ -921,10 +908,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     title: _userData?['name'] ?? 'Welcome',
                     subtitle: _userData?['email'] ?? 'Loading user data...',
                     profilePictureUrl: _userData?['profile_picture'],
-                    badge: _userData != null ? _buildStatusBadge(_userData!['is_active'] ?? false) : null,
+                    badge: _userData != null ? _buildStatusBadge(_userData!['status'] ?? false) : null,
                     additionalContent: [
                       Text(
-                        'Membership: ${_userData?['membership_type'] ?? 'N/A'}',
+                        'Membership: ${_userData?['package'] ?? 'N/A'}',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 13, // Reduced from 14
@@ -932,7 +919,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                       Text(
-                        'Last Visit: ${_userData?['last_visit'] ?? 'N/A'}',
+                        'Expire Date: ${_userData?['package_expiry_date'] ?? 'N/A'}',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 13, // Reduced from 14

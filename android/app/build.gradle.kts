@@ -14,14 +14,16 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+        isCoreLibraryDesugaringEnabled = true  // <-- ADD THIS LINE
     }
+    
     kotlinOptions {
         jvmTarget = JavaVersion.VERSION_11.toString()
     }
 
     defaultConfig {
         applicationId = "com.example.iron_board"
-        minSdk = flutter.minSdkVersion
+        minSdk = 23  // Explicitly set to 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -36,4 +38,9 @@ android {
 
 flutter {
     source = "../.."
+}
+
+// ADD DEPENDENCIES SECTION
+dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
